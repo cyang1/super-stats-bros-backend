@@ -7,7 +7,6 @@
 #include <opencv2/opencv.hpp>
 
 #include "constants.hpp"
-#include "image_util.hpp"
 
 using namespace SuperStatsBros;
 
@@ -82,81 +81,87 @@ int main(int argc, char* argv[])
         return -1;
     }
 
-    for (int i = 0; i < 2000; i++) {
+    for (int i = 0; i < 2100; i++) {
         cv::Mat frame;
         cap >> frame;
     }
 
     cv::Mat frame, localization = cv::Mat::eye(2, 3, CV_32F);
 
-    // while (true) {
-    //     cap >> frame;
-    //     imshow("original", frame);
-
-    //     if (localize(LOCALIZE_IN_GAME, frame, localization)) {
-    //         break;
-    //     }
-
-    //     if (cv::waitKey(1) >= 0) {
-    //         break;
-    //     }
-    // }
-
-    cv::Mat kirby = cv::imread("assets/stock_icons/kirby-0.png", cv::IMREAD_UNCHANGED);
-    cv::imshow("kirby", kirby);
-    cv::resize(kirby, kirby, cv::Size(), 1.075, .975);
-    convert_for_matching(kirby, kirby);
-
     while (true) {
         cap >> frame;
-        cv::warpAffine(frame, frame, localization, GAME_RES);
 
-        std::vector<cv::Point2i> matches;
-        find_matches(frame, kirby, matches);
-
-        for (auto const& match : matches) {
-            cv::rectangle(frame, cv::Rect(match, kirby.size()), cv::Scalar(255, 0, 0), 2);
+        if (LOCALIZE_IN_GAME.localize(frame, localization)) {
+            break;
         }
-        imshow("frame", frame);
 
         if (cv::waitKey(1) >= 0) {
             break;
         }
     }
 
+    Template kirby = Template("assets/stock_icons/kirby-0.png", STOCK_SCALE_X, STOCK_SCALE_Y);
 
-    // cv::namedWindow("frame");
-    // cv::namedWindow("unchanging");
-
-    // cv::Mat avg;
-    // std::deque<cv::Mat> frames;
-    // // TODO: Put this somewhere else.
-    // size_t HISTORY_LEN = 200;
-    // int EQUAL_THRESHOLD = 30;
-    // cv::Mat cur_frame, last_frame, canny;
-    // cap >> last_frame;
     // while (true) {
-    //     cap >> cur_frame;
-    //     cv::Canny(cur_frame, canny, 50, 200);
-    //     frames.push_back(abs(last_frame - cur_frame) < EQUAL_THRESHOLD);
-    //     if (frames.size() > HISTORY_LEN) {
-    //         frames.pop_front();
+    //     cap >> frame;
+    //     cv::warpAffine(frame, frame, localization, GAME_RES);
+
+    //     std::vector<cv::Point2i> matches;
+    //     kirby.matches(frame, matches);
+
+    //     for (auto const& match : matches) {
+    //         cv::rectangle(frame, cv::Rect(match, kirby.image.size()), cv::Scalar(255, 0, 0), 2);
     //     }
+    //     imshow("frame", frame);
 
-    //     cv::Mat avg = cv::Mat(height, width, CV_8UC3, UCHAR_MAX);
-    //     for (auto const& frame : frames) {
-    //         avg &= frame;
+    //     if (cv::waitKey(1) >= 0) {
+    //         break;
     //     }
-
-    //     cv::Mat kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(20, 20));
-    //     cv::morphologyEx(avg, avg, cv::MORPH_CLOSE, kernel);
-    //     cv::imshow("frame", cur_frame);
-    //     cv::imshow("canny", canny);
-    //     cv::imshow("unchanging", avg);
-    //     if(cv::waitKey(1) >= 0) break;
-
-    //     cur_frame.copyTo(last_frame);
     // }
+
+    cv::Mat kernel = cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(10, 10));
+    std::deque<cv::Mat> history, changes;
+    cv::Mat cur_frame;
+    while (true) {
+        cap >> cur_frame;
+        cv::warpAffine(cur_frame, cur_frame, localization, GAME_RES);
+
+        if (history.size() > 0) {
+            changes.push_back(abs(history.front() - cur_frame) < 30);
+            if (changes.size() > 30) {
+                changes.pop_front();
+            }
+        }
+
+        history.push_back(cur_frame.clone());
+        if (history.size() > 30) {
+            history.pop_front();
+        }
+
+        cv::Mat unchanged = cv::Mat(cur_frame.size(), CV_8UC3, cv::Scalar(255, 255, 255));
+        for (auto const &frame : changes) {
+            unchanged &= frame;
+        }
+
+        cv::cvtColor(unchanged, unchanged, cv::COLOR_BGR2GRAY);
+        unchanged = unchanged == 255;
+        cv::morphologyEx(unchanged, unchanged, cv::MORPH_CLOSE, kernel);
+        cv::cvtColor(unchanged, unchanged, cv::COLOR_GRAY2BGR);
+
+        imshow("unchanged frame", cur_frame & unchanged);
+
+        std::vector<cv::Point2i> matches;
+        kirby.matches(cur_frame & unchanged, matches);
+
+        for (auto const& match : matches) {
+            cv::rectangle(cur_frame, cv::Rect(match, kirby.image.size()), cv::Scalar(255, 0, 0), 2);
+        }
+        imshow("frame", cur_frame);
+
+        if (cv::waitKey(1) >= 0) {
+            break;
+        }
+    }
 
     cap.release();
     return 0;

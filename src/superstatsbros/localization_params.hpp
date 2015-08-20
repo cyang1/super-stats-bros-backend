@@ -3,25 +3,24 @@
 
 #include <opencv2/opencv.hpp>
 
+#include "template.hpp"
+
 namespace SuperStatsBros {
 
 class LocalizationParams
 {
 public:
-    LocalizationParams(const std::string filename, const cv::Point origin, const double scale)
-        : filename(filename), origin(origin), scale(scale) { }
-
+    LocalizationParams(const std::string &filename, const cv::Point &origin, double scale)
+            : t(filename, scale), origin(origin) { }
+    LocalizationParams(const std::string &filename, const cv::Point &origin, double scale_x, double scale_y)
+            : t(filename, scale_x, scale_y), origin(origin) { }
     virtual ~LocalizationParams() { }
 
-    const cv::Mat &image();
-    const cv::Mat &image_for_matching();
+    bool localize(const cv::Mat &in, cv::Mat &out) const;
 
-    const std::string filename;
-    const cv::Point origin;
-    const double scale;
 private:
-    cv::Mat im;
-    cv::Mat matching_im;
+    const Template t;
+    const cv::Point origin;
 };
 
 } /* SuperStatsBros */
