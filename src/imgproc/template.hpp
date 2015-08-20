@@ -1,5 +1,5 @@
-#ifndef SUPERSTATSBROS_TEMPLATE_HPP
-#define SUPERSTATSBROS_TEMPLATE_HPP
+#ifndef SUPERSTATSBROS_IMGPROC_TEMPLATE_HPP
+#define SUPERSTATSBROS_IMGPROC_TEMPLATE_HPP
 
 #include <string>
 #include <opencv2/opencv.hpp>
@@ -14,6 +14,7 @@ public:
     virtual ~Template() { }
 
     void matches(const cv::Mat &frame, std::vector<cv::Point2i> &matches) const;
+    unsigned int count_matches(const cv::Mat &frame) const;
 
     cv::Mat image;
     cv::Mat mask;
@@ -21,4 +22,4 @@ public:
 
 } /* SuperStatsBros */
 
-#endif /* SUPERSTATSBROS_TEMPLATE_HPP */
+#endif /* SUPERSTATSBROS_IMGPROC_TEMPLATE_HPP */

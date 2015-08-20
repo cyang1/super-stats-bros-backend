@@ -1,5 +1,5 @@
 #include "template.hpp"
-#include "constants.hpp"
+#include "util/constants.hpp"
 
 #include <algorithm>
 
@@ -82,6 +82,14 @@ void Template::matches(const cv::Mat &frame, std::vector<cv::Point2i> &matches) 
     cv::minMaxLoc(result, NULL, &val, NULL, &loc);
     std::cout << "Max sobel: " << val << ", Max color: " << max_other_score << ", Max point: " << loc << ", Pre-matches: " << cv::countNonZero(matches_mask) << ", Number of matches: " << matches.size() << std::endl;
 #endif
+}
+
+unsigned int Template::count_matches(const cv::Mat &frame) const
+{
+    std::vector<cv::Point2i> matches;
+    this->matches(frame, matches);
+
+    return matches.size();
 }
 
 } /* SuperStatsBros */
