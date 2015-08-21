@@ -85,10 +85,14 @@ GameState &StateInGame::process(const cv::Mat &frame)
         if (!this->waiting_for_start) {
             this->waiting_for_start = true;
             this->start_time = now;
+            this->ocr_cases.clear();
             for (unsigned int i = 0; i < NUM_PLAYERS; i++) {
-                cv::Point origin = cv::Point(STOCK_ORIGIN_X[i], STOCK_ORIGIN_Y);
+                cv::Point origin(STOCK_ORIGIN_X[i], STOCK_ORIGIN_Y);
                 this->stock_icons[i] = cv::Mat(frame, cv::Rect(origin, STOCK_SIZE));
                 this->stocks[i] = 0;
+
+                cv::Point percentage_pos(STOCK_ORIGIN_X[i], PERCENTAGE_ORIGIN_Y);
+                this->ocr_cases.push_back(OCRCase(cv::Rect(percentage_pos, PERCENTAGE_SIZE), "0", MIN_CONFIDENCE));
             }
         }
 
@@ -139,6 +143,12 @@ GameState &StateInGame::process(const cv::Mat &frame)
 #endif
 
         this->stocks[i] = num_lives;
+    }
+
+    this->ocr.analyze(frame, this->ocr_cases);
+    for (int i = 0; i < this->ocr_cases.size(); i++) {
+        OCRCase &res = ocr_cases[i];
+        std::cout << "Player " << i + 1 << ": " << res.text << "%" << std::endl;
     }
 
     // TODO: Process game time, character damage/lives.

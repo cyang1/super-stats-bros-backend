@@ -52,7 +52,7 @@ public:
      * @param ocr_cases List of OCR cases
      * @param draw_binarization Do draw binarization results to the input frame, false by default
      */
-    void analyze(cv::Mat& frame, std::vector<OCRCase>& ocr_cases, bool draw_binarization=false);
+    void analyze(const cv::Mat& frame, std::vector<OCRCase>& ocr_cases, bool draw_binarization=false);
 protected:
     bool is_initialized;
     tesseract::TessBaseAPI *api;

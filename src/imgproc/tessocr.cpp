@@ -1,4 +1,4 @@
-#include "tessocr.h"
+#include "tessocr.hpp"
 #include <opencv2/imgproc/imgproc.hpp>
 #include <assert.h>
 
@@ -19,7 +19,7 @@ TessOCR::TessOCR(double text_thr, const char* whitelist_char,
     this->text_thr = text_thr;
 }
 
-void TessOCR::analyze(Mat& frame, std::vector<OCRCase> &ocr_cases, bool draw_binarization) {
+void TessOCR::analyze(const Mat& frame, std::vector<OCRCase> &ocr_cases, bool draw_binarization) {
     vector<OCRCase>::iterator it = ocr_cases.begin();
     for (; it != ocr_cases.end(); ++it) {
         Mat sel, gray;

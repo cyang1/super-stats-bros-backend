@@ -5,6 +5,7 @@
 #include <opencv2/opencv.hpp>
 
 #include "util/constants.hpp"
+#include "imgproc/tessocr.hpp"
 
 namespace SuperStatsBros {
 
@@ -63,6 +64,9 @@ private:
     std::chrono::system_clock::time_point start_time;
     cv::Mat stock_icons[NUM_PLAYERS];
     unsigned int stocks[NUM_PLAYERS];
+
+    TessOCR ocr = TessOCR(PERCENTAGE_THRESHOLD);
+    std::vector<OCRCase> ocr_cases;
 };
 
 class StatePaused : public GameState, public SingletonMixin<StatePaused>

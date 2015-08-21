@@ -36,6 +36,11 @@ static const cv::Size STOCK_SIZE(26, 23);
 static const unsigned int NUM_PLAYERS = 4;
 static const unsigned int MAX_STOCKS = 5;
 
+static const double PERCENTAGE_THRESHOLD = 150.0;
+static const unsigned int MIN_CONFIDENCE = 90;
+static const unsigned int PERCENTAGE_ORIGIN_Y = 406;
+static const cv::Size PERCENTAGE_SIZE(102, 37);
+
 static const double STATE_MISMATCH_DELAY = 0.5;
 static const double UNPAUSE_SECONDS_DELAY = 1.0;
 static const double START_GAME_SECONDS_DELAY = 4.0;

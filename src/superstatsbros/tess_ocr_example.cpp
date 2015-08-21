@@ -1,7 +1,7 @@
 #include <opencv2/opencv.hpp>
 #include <iostream>
 
-#include "imgproc/tessocr.h"
+#include "imgproc/tessocr.hpp"
 
 using namespace cv;
 using namespace std;
