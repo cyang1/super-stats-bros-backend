@@ -10,16 +10,15 @@ namespace SuperStatsBros {
 class LocalizationParams
 {
 public:
-    LocalizationParams(const std::string &filename, const cv::Point &origin, double scale)
-            : t(filename, scale), origin(origin) { }
-    LocalizationParams(const std::string &filename, const cv::Point &origin, double scale_x, double scale_y)
-            : t(filename, scale_x, scale_y), origin(origin) { }
+    LocalizationParams(const Template &templ, const cv::Point &origin)
+            : t(templ), origin(origin) { }
     virtual ~LocalizationParams() { }
 
     bool localize(const cv::Mat &in, cv::Mat &out) const;
 
-private:
     const Template t;
+
+private:
     const cv::Point origin;
 };
 

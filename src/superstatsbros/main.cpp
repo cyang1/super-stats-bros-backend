@@ -83,17 +83,26 @@ int main(int argc, char* argv[])
     }
 
     // Skip some frames at the beginning that we don't want. Just for testing.
-    for (int i = 0; i < 1000; i++) {
+    for (int i = 0; i < 700; i++) {
         cv::Mat frame;
         cap >> frame;
     }
 
-    cv::Mat frame, localization = cv::Mat::eye(2, 3, CV_32F);
+    cv::namedWindow("video");
 
-    // GameState cur_state;
+    GameState *cur_state = &StateUnknown::instance();
+    cv::Mat frame, localization = cv::Mat::eye(2, 3, CV_32F);
     while (true) {
         cap >> frame;
+        cv::warpAffine(frame, frame, localization, GAME_RES);
 
+        GameState *last_state;
+        do {
+            last_state = cur_state;
+            cur_state = &cur_state->process(frame);
+        } while (cur_state != last_state);
+
+        cv::imshow("video", frame);
         if (cv::waitKey(1) >= 0) {
             break;
         }

@@ -3,87 +3,210 @@
 
 #include <vector>
 
-virtual GameState &StateUnknown::process(const cv::Mat &frame)
+namespace SuperStatsBros {
+
+GameState &StateUnknown::process(const cv::Mat &frame)
 {
     if (LOCALIZE_CHAR_SELECT.t.count_matches(frame)) {
+#ifdef DEBUG
+        std::cout << "STATE CHANGE: StateUnknown -> StateCharacterSelect" << std::endl;
+#endif
         return StateCharacterSelect::instance();
     }
 
-    return this;
+    return *this;
 }
 
-virtual GameState &StateCharacterSelect::process(const cv::Mat &frame)
+GameState &StateCharacterSelect::process(const cv::Mat &frame)
 {
     if (!LOCALIZE_CHAR_SELECT.t.count_matches(frame)) {
         if (LOCALIZE_STAGE_SELECT.t.count_matches(frame)) {
+#ifdef DEBUG
+            std::cout << "STATE CHANGE: StateCharacterSelect -> StateStageSelect" << std::endl;
+#endif
             return StateStageSelect::instance();
         }
 
+#ifdef DEBUG
+        std::cout << "STATE CHANGE: StateCharacterSelect -> StateUnknown" << std::endl;
+#endif
         return StateUnknown::instance();
     }
 
     // TODO: Process names/characters playing here.
 
-    return this;
+    return *this;
 }
 
-virtual GameState &StateStageSelect::process(const cv::Mat &frame)
+GameState &StateStageSelect::process(const cv::Mat &frame)
 {
     if (!LOCALIZE_STAGE_SELECT.t.count_matches(frame)) {
         if (LOCALIZE_CHAR_SELECT.t.count_matches(frame)) {
+#ifdef DEBUG
+            std::cout << "STATE CHANGE: StateStageSelect -> StateCharacterSelect" << std::endl;
+#endif
             return StateCharacterSelect::instance();
         }
 
-        return StateInGame::instance();
+        if (LOCALIZE_IN_GAME.t.count_matches(frame)) {
+#ifdef DEBUG
+            std::cout << "STATE CHANGE: StateStageSelect -> StateInGame" << std::endl;
+#endif
+            return StateInGame::instance();
+        }
+
+        // We're probably still on the stage select screen: the user could
+        // have covered the STAGE SELECT text with the cursor.
     }
 
     // TODO: Process stage being selected.
 
-    return this;
+    return *this;
 }
 
-virtual GameState &StateInGame::process(const cv::Mat &frame)
+GameState &StateInGame::process(const cv::Mat &frame)
 {
     if (LOCALIZE_END_GAME.t.count_matches(frame)) {
+#ifdef DEBUG
+        std::cout << "STATE CHANGE: StateInGame -> StateGameEnd" << std::endl;
+#endif
         return StateGameEnd::instance();
     } else if (LOCALIZE_PAUSED.t.count_matches(frame)) {
+#ifdef DEBUG
+        std::cout << "STATE CHANGE: StateInGame -> StatePaused" << std::endl;
+#endif
         return StatePaused::instance();
     }
 
-    // TODO: Record game start time the first time this is called.
-    // TODO: Process game time, character damage/lives.
-    // TODO: Don't count the first few seconds because the GO text will cover stock (?)
+    // If the READY graphic is on the screen, then we assume that we just
+    // changed to this state from the character select screen.
+    std::chrono::system_clock::time_point now = std::chrono::system_clock::now();
+    if (LOCALIZE_IN_GAME.t.count_matches(frame)) {
+        if (!this->waiting_for_start) {
+            this->waiting_for_start = true;
+            this->start_time = now;
+            for (unsigned int i = 0; i < NUM_PLAYERS; i++) {
+                cv::Point origin = cv::Point(STOCK_ORIGIN_X[i], STOCK_ORIGIN_Y);
+                this->stock_icons[i] = cv::Mat(frame, cv::Rect(origin, STOCK_SIZE));
+                this->stocks[i] = 0;
+            }
+        }
 
-    return this;
-}
-
-virtual GameState &StatePaused::process(const cv::Mat &frame)
-{
-    if (!LOCALIZE_PAUSED.t.count_matches(frame)) {
-        // TODO: Save unpause time, the wait some amount of time before
-        // considering this as in game, since quitting the game removes the
-        // pause frame for a little.
+        return *this;
     }
 
-    return this;
+    if (this->waiting_for_start && (now - this->start_time).count() < START_GAME_SECONDS_DELAY) {
+        return *this;
+    }
+
+    this->waiting_for_start = false;
+
+    for (unsigned int i = 0; i < NUM_PLAYERS; i++) {
+        unsigned int num_lives;
+        for (num_lives = 0; num_lives < MAX_STOCKS; num_lives++) {
+            cv::Point cur_origin = cv::Point(STOCK_ORIGIN_X[i] + STOCK_SIZE.width * num_lives, STOCK_ORIGIN_Y);
+            cv::Mat possible_stock(frame, cv::Rect(cur_origin, STOCK_SIZE));
+            // cv::imshow("test1", possible_stock);
+            // cv::waitKey();
+
+            // cv::Mat equal_pixels = abs(this->stock_icons[i] - possible_stock) < COLOR_THRESHOLD;
+            // cv::cvtColor(equal_pixels, equal_pixels, cv::COLOR_BGR2GRAY);
+            // unsigned int equal_area = cv::countNonZero(equal_pixels);
+            // double equal_ratio = equal_area * 1.0 / (STOCK_WIDTH * STOCK_HEIGHT);
+
+            cv::Mat single_result;
+            cv::matchTemplate(possible_stock, this->stock_icons[i], single_result, cv::TM_CCOEFF_NORMED);
+            double score = single_result.at<float>(0, 0);
+
+            if (score < STOCK_MATCH_THRESHOLD) {
+#ifdef DEBUG
+                if ((i == 0 || i == 2) && num_lives != this->stocks[i]) {
+                    std::cout << score << std::endl;
+                    // cv::imshow("im1", this->stock_icons[i]);
+                    // cv::imshow("im2", possible_stock);
+                    // cv::imshow("equal", equal_pixels);
+                    // cv::waitKey();
+                }
+#endif
+                break;
+            }
+        }
+
+#ifdef DEBUG
+        if (num_lives != this->stocks[i] and i != 1 and i != 3) {
+            std::cout << "Player " << i + 1 << " has " << num_lives << " stock." << std::endl;
+        }
+#endif
+
+        this->stocks[i] = num_lives;
+    }
+
+    // TODO: Process game time, character damage/lives.
+
+    return *this;
 }
 
-virtual GameState &StateGameEnd::process(const cv::Mat &frame)
+GameState &StatePaused::process(const cv::Mat &frame)
 {
-    if (LOCALIZE_SCORE_SCREEN.t.count_matches(frame)) {
-        return StateSoreScreen::instance();
+    if (!LOCALIZE_PAUSED.t.count_matches(frame)) {
+        if (LOCALIZE_SCORE_SCREEN.t.count_matches(frame)) { // Vanilla Melee
+#ifdef DEBUG
+            std::cout << "STATE CHANGE: StatePaused -> StateScoreScreen" << std::endl;
+#endif
+            return StateScoreScreen::instance();
+        } else if (LOCALIZE_CHAR_SELECT.t.count_matches(frame)) { // 20xx
+#ifdef DEBUG
+            std::cout << "STATE CHANGE: StatePaused -> StateCharacterSelect" << std::endl;
+#endif
+            return StateCharacterSelect::instance();
+        }
+
+        std::chrono::system_clock::time_point now = std::chrono::system_clock::now();
+        if (!unpaused) {
+            this->unpaused = true;
+            this->unpause_time = now;
+        } else if ((now - this->unpause_time).count() > UNPAUSE_SECONDS_DELAY) {
+#ifdef DEBUG
+            std::cout << "STATE CHANGE: StatePaused -> StateInGame" << std::endl;
+#endif
+            return StateInGame::instance();
+        }
+    }
+
+    this->unpaused = false;
+
+    return *this;
+}
+
+GameState &StateGameEnd::process(const cv::Mat &frame)
+{
+    if (LOCALIZE_SCORE_SCREEN.t.count_matches(frame)) { // Vanilla Melee
+#ifdef DEBUG
+        std::cout << "STATE CHANGE: StateGameEnd -> StateScoreScreen" << std::endl;
+#endif
+        return StateScoreScreen::instance();
+    } else if (LOCALIZE_CHAR_SELECT.t.count_matches(frame)) { // 20xx
+#ifdef DEBUG
+        std::cout << "STATE CHANGE: StateGameEnd -> StateCharacterSelect" << std::endl;
+#endif
+        return StateCharacterSelect::instance();
     }
 
     // TODO: Record game end time the first time this is called.
 
-    return this;
+    return *this;
 }
 
-virtual GameState &StateScoreScreen::process(const cv::Mat &frame)
+GameState &StateScoreScreen::process(const cv::Mat &frame)
 {
     if (LOCALIZE_CHAR_SELECT.t.count_matches(frame)) {
+#ifdef DEBUG
+        std::cout << "STATE CHANGE: StateScoreScreen -> StateCharacterSelect" << std::endl;
+#endif
         return StateCharacterSelect::instance();
     }
 
-    return this;
+    return *this;
 }
+
+} /* SuperStatsBros */

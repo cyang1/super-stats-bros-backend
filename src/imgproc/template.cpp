@@ -57,21 +57,15 @@ void Template::matches(const cv::Mat &frame, std::vector<cv::Point2i> &matches) 
     if (cv::countNonZero(matches_mask) > 0) {
         cv::findNonZero(matches_mask, matches);
 
-        unsigned int mask_area = cv::countNonZero(this->mask);
-        double content_ratio = mask_area * 1.0 / this->mask.size().area();
-        matches.erase(std::remove_if(matches.begin(), matches.end(), [&](const cv::Point2i &p) -> bool {
-            cv::Mat section(frame, cv::Rect(p, this->image.size()));
-            cv::Mat single_result;
-            cv::matchTemplate(this->image, fill_bg(section, this->mask), single_result, cv::TM_CCOEFF_NORMED);
+        // matches.erase(std::remove_if(matches.begin(), matches.end(), [&](const cv::Point2i &p) -> bool {
+        //     cv::Mat section(frame, cv::Rect(p, this->image.size()));
+        //     cv::Mat single_result;
+        //     cv::matchTemplate(this->image, fill_bg(section, this->mask), single_result, cv::TM_CCOEFF_NORMED);
 
-            // Calculate score ignoring pixels that were masked out.
-            // Score assumed to be linear in the number of pixels matched,
-            // probably not actually the case.
-            double score = single_result.at<float>(0, 0);
-            score = (score - content_ratio) / (1 - content_ratio);
-            max_other_score = std::max(max_other_score, score);
-            return score < TEMPLATE_CONTENT_THRESHOLD;
-        }), matches.end());
+        //     double score = single_result.at<float>(0, 0);
+        //     max_other_score = std::max(max_other_score, score);
+        //     return score < TEMPLATE_CONTENT_THRESHOLD;
+        // }), matches.end());
     }
 
 #ifdef DEBUG
@@ -80,7 +74,7 @@ void Template::matches(const cv::Mat &frame, std::vector<cv::Point2i> &matches) 
     cv::Point loc;
     // cv::minMaxLoc(result, &val, NULL, &loc, NULL);
     cv::minMaxLoc(result, NULL, &val, NULL, &loc);
-    std::cout << "Max sobel: " << val << ", Max color: " << max_other_score << ", Max point: " << loc << ", Pre-matches: " << cv::countNonZero(matches_mask) << ", Number of matches: " << matches.size() << std::endl;
+    // std::cout << "Max sobel: " << val << ", Max color: " << max_other_score << ", Max point: " << loc << ", Pre-matches: " << cv::countNonZero(matches_mask) << ", Number of matches: " << matches.size() << std::endl;
 #endif
 }
 

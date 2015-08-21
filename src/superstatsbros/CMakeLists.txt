@@ -1,4 +1,4 @@
-add_executable(superstatsbros main.cpp)
+add_executable(superstatsbros main.cpp game_state.cpp)
 target_link_libraries(superstatsbros imgproc ${Tesseract_LIBRARIES} ${OpenCV_LIBRARIES})
 
 add_executable(tess_ocr_example tess_ocr_example.cpp)

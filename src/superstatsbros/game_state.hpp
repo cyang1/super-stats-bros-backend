@@ -1,13 +1,15 @@
 #ifndef SUPERSTATSBROS_GAME_STATE_HPP
 #define SUPERSTATSBROS_GAME_STATE_HPP
 
-#include <date.h>
+#include <chrono>
 #include <opencv2/opencv.hpp>
+
+#include "util/constants.hpp"
 
 namespace SuperStatsBros {
 
 template<typename T>
-class GameState
+class SingletonMixin
 {
 public:
     static T &instance()
@@ -15,61 +17,73 @@ public:
         static T me;
         return me;
     }
+};
 
+class GameState
+{
+public:
     virtual GameState &process(const cv::Mat &frame) = 0;
 
 protected:
+    GameState() { }
     virtual ~GameState() { }
 
+    std::chrono::system_clock::time_point not_found_time;
+
 private:
-    GameState() { }
-
-    GameState(T const&)       = delete;
-    void operator=(T const&)  = delete;
+    GameState(GameState const&)       = delete;
+    void operator=(GameState const&)  = delete;
 };
 
-class StateUnknown : GameState<StateUnknown>
+class StateUnknown : public GameState, public SingletonMixin<StateUnknown>
 {
-    using GameState<StateUnknown>::GameState;
+    using GameState::GameState;
     virtual GameState &process(const cv::Mat &frame);
 };
 
-class StateCharacterSelect : GameState<StateCharacterSelect>
+class StateCharacterSelect : public GameState, public SingletonMixin<StateCharacterSelect>
 {
-    using GameState<StateCharacterSelect>::GameState;
+    using GameState::GameState;
     virtual GameState &process(const cv::Mat &frame);
 };
 
-class StateStageSelect : GameState<StateStageSelect>
+class StateStageSelect : public GameState, public SingletonMixin<StateStageSelect>
 {
-    using GameState<StateStageSelect>::GameState;
+    using GameState::GameState;
     virtual GameState &process(const cv::Mat &frame);
 };
 
-class StateInGame : GameState<StateInGame>
+class StateInGame : public GameState, public SingletonMixin<StateInGame>
 {
-    using GameState<StateInGame>::GameState;
-    virtual GameState &process(const cv::Mat &frame);
-};
-
-class StatePaused : GameState<StatePaused>
-{
-    using GameState<StatePaused>::GameState;
+    using GameState::GameState;
     virtual GameState &process(const cv::Mat &frame);
 
 private:
-    std::chrono::time_point unpause_time;
+    bool waiting_for_start = false;
+    std::chrono::system_clock::time_point start_time;
+    cv::Mat stock_icons[NUM_PLAYERS];
+    unsigned int stocks[NUM_PLAYERS];
 };
 
-class StateGameEnd : GameState<StateGameEnd>
+class StatePaused : public GameState, public SingletonMixin<StatePaused>
 {
-    using GameState<StateGameEnd>::GameState;
+    using GameState::GameState;
+    virtual GameState &process(const cv::Mat &frame);
+
+private:
+    bool unpaused = false;
+    std::chrono::system_clock::time_point unpause_time;
+};
+
+class StateGameEnd : public GameState, public SingletonMixin<StateGameEnd>
+{
+    using GameState::GameState;
     virtual GameState &process(const cv::Mat &frame);
 };
 
-class StateScoreScreen : GameState<StateScoreScreen>
+class StateScoreScreen : public GameState, public SingletonMixin<StateScoreScreen>
 {
-    using GameState<StateScoreScreen>::GameState;
+    using GameState::GameState;
     virtual GameState &process(const cv::Mat &frame);
 };
 
