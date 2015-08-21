@@ -20,7 +20,11 @@ Prerequisites
 ---------------------------------------------------------------------------
 
 There are some libraries required for this to compile, namely OpenCV (for
-image reading/writing and colorspace conversion).
+image reading/writing and colorspace conversion). To install OpenCV with
+brew, run:
+
+brew install opencv3 --c++11 --with-cuda --with-ffmpeg --with-tbb
+brew link opencv3 --force
 
 ---------------------------------------------------------------------------
 Building the Code
