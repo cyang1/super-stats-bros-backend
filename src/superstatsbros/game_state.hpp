@@ -23,7 +23,7 @@ public:
 class GameState
 {
 public:
-    virtual GameState &process(const cv::Mat &frame) = 0;
+    virtual GameState &process(cv::Mat &frame) = 0;
 
 protected:
     GameState() { }
@@ -39,40 +39,41 @@ private:
 class StateUnknown : public GameState, public SingletonMixin<StateUnknown>
 {
     using GameState::GameState;
-    virtual GameState &process(const cv::Mat &frame);
+    virtual GameState &process(cv::Mat &frame);
 };
 
 class StateCharacterSelect : public GameState, public SingletonMixin<StateCharacterSelect>
 {
     using GameState::GameState;
-    virtual GameState &process(const cv::Mat &frame);
+    virtual GameState &process(cv::Mat &frame);
 };
 
 class StateStageSelect : public GameState, public SingletonMixin<StateStageSelect>
 {
     using GameState::GameState;
-    virtual GameState &process(const cv::Mat &frame);
+    virtual GameState &process(cv::Mat &frame);
 };
 
 class StateInGame : public GameState, public SingletonMixin<StateInGame>
 {
     using GameState::GameState;
-    virtual GameState &process(const cv::Mat &frame);
+    virtual GameState &process(cv::Mat &frame);
 
 private:
     bool waiting_for_start = false;
     std::chrono::system_clock::time_point start_time;
     cv::Mat stock_icons[NUM_PLAYERS];
     unsigned int stocks[NUM_PLAYERS];
+    bool player_playing[NUM_PLAYERS];
 
-    TessOCR ocr = TessOCR(PERCENTAGE_THRESHOLD);
+    TessOCR ocr = TessOCR(DMG_THRESHOLD);
     std::vector<OCRCase> ocr_cases;
 };
 
 class StatePaused : public GameState, public SingletonMixin<StatePaused>
 {
     using GameState::GameState;
-    virtual GameState &process(const cv::Mat &frame);
+    virtual GameState &process(cv::Mat &frame);
 
 private:
     bool unpaused = false;
@@ -82,13 +83,13 @@ private:
 class StateGameEnd : public GameState, public SingletonMixin<StateGameEnd>
 {
     using GameState::GameState;
-    virtual GameState &process(const cv::Mat &frame);
+    virtual GameState &process(cv::Mat &frame);
 };
 
 class StateScoreScreen : public GameState, public SingletonMixin<StateScoreScreen>
 {
     using GameState::GameState;
-    virtual GameState &process(const cv::Mat &frame);
+    virtual GameState &process(cv::Mat &frame);
 };
 
 } /* SuperStatsBros */

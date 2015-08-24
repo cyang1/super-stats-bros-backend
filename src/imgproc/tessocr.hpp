@@ -42,7 +42,7 @@ public:
      * @param whitelist_char String of allowed characters
      * @param psm Tesseract mode, default PSM_SINGLE_WORD
      */
-    TessOCR(double text_thr=200, const char* whitelist_char="0123456789:%",
+    TessOCR(double text_thr=200, const char* whitelist_char="0123456789",
             tesseract::PageSegMode psm=tesseract::PSM_SINGLE_WORD);
     ~TessOCR();
 

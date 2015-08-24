@@ -50,31 +50,19 @@ void Template::matches(const cv::Mat &frame, std::vector<cv::Point2i> &matches) 
     cv::Mat result;
     cv::matchTemplate(sobel2(frame), sobel2(this->image), result, cv::TM_CCOEFF_NORMED);
 
-    double max_other_score = -1;
-
     // OpenCV is silly and fails an assertion if there are no matches.
     cv::Mat matches_mask = result > TEMPLATE_CONTOUR_THRESHOLD;
     if (cv::countNonZero(matches_mask) > 0) {
         cv::findNonZero(matches_mask, matches);
-
-        // matches.erase(std::remove_if(matches.begin(), matches.end(), [&](const cv::Point2i &p) -> bool {
-        //     cv::Mat section(frame, cv::Rect(p, this->image.size()));
-        //     cv::Mat single_result;
-        //     cv::matchTemplate(this->image, fill_bg(section, this->mask), single_result, cv::TM_CCOEFF_NORMED);
-
-        //     double score = single_result.at<float>(0, 0);
-        //     max_other_score = std::max(max_other_score, score);
-        //     return score < TEMPLATE_CONTENT_THRESHOLD;
-        // }), matches.end());
     }
 
 #ifdef DEBUG
     // imshow("result", result);
-    double val;
-    cv::Point loc;
+    // double val;
+    // cv::Point loc;
     // cv::minMaxLoc(result, &val, NULL, &loc, NULL);
-    cv::minMaxLoc(result, NULL, &val, NULL, &loc);
-    // std::cout << "Max sobel: " << val << ", Max color: " << max_other_score << ", Max point: " << loc << ", Pre-matches: " << cv::countNonZero(matches_mask) << ", Number of matches: " << matches.size() << std::endl;
+    // cv::minMaxLoc(result, NULL, &val, NULL, &loc);
+    // std::cout << "Max sobel: " << val << ", Max point: " << loc << ", Pre-matches: " << cv::countNonZero(matches_mask) << ", Number of matches: " << matches.size() << std::endl;
 #endif
 }
 

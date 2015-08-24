@@ -97,9 +97,12 @@ int main(int argc, char* argv[])
         localization.at<float>(0, 2) = (frame.cols - GAME_RES.width) / 2;
     }
 
+    unsigned long frame_count = 0;
+
     GameState *cur_state = &StateUnknown::instance();
     while (true) {
         cap >> frame;
+
         cv::warpAffine(frame, frame, localization, GAME_RES);
 
         GameState *last_state;
@@ -112,6 +115,8 @@ int main(int argc, char* argv[])
         if (cv::waitKey(1) >= 0) {
             break;
         }
+
+        frame_count++;
     }
 
     cap.release();

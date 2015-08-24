@@ -5,7 +5,7 @@
 
 namespace SuperStatsBros {
 
-GameState &StateUnknown::process(const cv::Mat &frame)
+GameState &StateUnknown::process(cv::Mat &frame)
 {
     if (LOCALIZE_CHAR_SELECT.t.count_matches(frame)) {
 #ifdef DEBUG
@@ -17,7 +17,7 @@ GameState &StateUnknown::process(const cv::Mat &frame)
     return *this;
 }
 
-GameState &StateCharacterSelect::process(const cv::Mat &frame)
+GameState &StateCharacterSelect::process(cv::Mat &frame)
 {
     if (!LOCALIZE_CHAR_SELECT.t.count_matches(frame)) {
         if (LOCALIZE_STAGE_SELECT.t.count_matches(frame)) {
@@ -38,7 +38,7 @@ GameState &StateCharacterSelect::process(const cv::Mat &frame)
     return *this;
 }
 
-GameState &StateStageSelect::process(const cv::Mat &frame)
+GameState &StateStageSelect::process(cv::Mat &frame)
 {
     if (!LOCALIZE_STAGE_SELECT.t.count_matches(frame)) {
         if (LOCALIZE_CHAR_SELECT.t.count_matches(frame)) {
@@ -64,7 +64,7 @@ GameState &StateStageSelect::process(const cv::Mat &frame)
     return *this;
 }
 
-GameState &StateInGame::process(const cv::Mat &frame)
+GameState &StateInGame::process(cv::Mat &frame)
 {
     if (LOCALIZE_END_GAME.t.count_matches(frame)) {
 #ifdef DEBUG
@@ -91,32 +91,43 @@ GameState &StateInGame::process(const cv::Mat &frame)
                 this->stock_icons[i] = cv::Mat(frame, cv::Rect(origin, STOCK_SIZE));
                 this->stocks[i] = 0;
 
-                cv::Point percentage_pos(STOCK_ORIGIN_X[i], PERCENTAGE_ORIGIN_Y);
-                this->ocr_cases.push_back(OCRCase(cv::Rect(percentage_pos, PERCENTAGE_SIZE), "0", MIN_CONFIDENCE));
+                cv::Point dmg_pos(STOCK_ORIGIN_X[i], DMG_ORIGIN_Y);
+                cv::Rect dmg_rect(dmg_pos, DMG_SIZE);
+                this->ocr_cases.push_back(OCRCase(dmg_rect, "0", MIN_CONFIDENCE));
             }
         }
 
         return *this;
     }
 
-    if (this->waiting_for_start && (now - this->start_time).count() < START_GAME_SECONDS_DELAY) {
+    auto time_since_start = std::chrono::duration_cast<std::chrono::seconds>(now - this->start_time).count();
+    if (this->waiting_for_start && time_since_start < START_GAME_SECONDS_DELAY) {
         return *this;
+    } else if (this->waiting_for_start) {
+        // End of waiting period.
+        cv::Mat gray;
+        cv::cvtColor(frame, gray, cv::COLOR_BGR2GRAY);
+        cv::threshold(gray, gray, DMG_THRESHOLD, 255, cv::THRESH_BINARY);
+
+        for (unsigned int i = 0; i < NUM_PLAYERS; i++) {
+            cv::Point dmg_pos(STOCK_ORIGIN_X[i], DMG_ORIGIN_Y);
+            cv::Rect dmg_rect(dmg_pos, DMG_SIZE);
+            cv::Mat maybe_damage(gray, dmg_rect);
+            this->player_playing[i] = true;
+        }
     }
 
     this->waiting_for_start = false;
 
     for (unsigned int i = 0; i < NUM_PLAYERS; i++) {
+        if (!this->player_playing[i]) {
+            continue;
+        }
+
         unsigned int num_lives;
         for (num_lives = 0; num_lives < MAX_STOCKS; num_lives++) {
             cv::Point cur_origin = cv::Point(STOCK_ORIGIN_X[i] + STOCK_SIZE.width * num_lives, STOCK_ORIGIN_Y);
             cv::Mat possible_stock(frame, cv::Rect(cur_origin, STOCK_SIZE));
-            // cv::imshow("test1", possible_stock);
-            // cv::waitKey();
-
-            // cv::Mat equal_pixels = abs(this->stock_icons[i] - possible_stock) < COLOR_THRESHOLD;
-            // cv::cvtColor(equal_pixels, equal_pixels, cv::COLOR_BGR2GRAY);
-            // unsigned int equal_area = cv::countNonZero(equal_pixels);
-            // double equal_ratio = equal_area * 1.0 / (STOCK_WIDTH * STOCK_HEIGHT);
 
             cv::Mat single_result;
             cv::matchTemplate(possible_stock, this->stock_icons[i], single_result, cv::TM_CCOEFF_NORMED);
@@ -124,20 +135,18 @@ GameState &StateInGame::process(const cv::Mat &frame)
 
             if (score < STOCK_MATCH_THRESHOLD) {
 #ifdef DEBUG
-                if ((i == 0 || i == 2) && num_lives != this->stocks[i]) {
+                if (num_lives != this->stocks[i]) {
                     std::cout << score << std::endl;
-                    // cv::imshow("im1", this->stock_icons[i]);
-                    // cv::imshow("im2", possible_stock);
-                    // cv::imshow("equal", equal_pixels);
-                    // cv::waitKey();
                 }
 #endif
                 break;
             }
+
+            cv::rectangle(frame, cv::Rect(cur_origin, STOCK_SIZE), cv::Scalar(0, 0, 255), 2);
         }
 
 #ifdef DEBUG
-        if (num_lives != this->stocks[i] and i != 1 and i != 3) {
+        if (num_lives != this->stocks[i]) {
             std::cout << "Player " << i + 1 << " has " << num_lives << " stock." << std::endl;
         }
 #endif
@@ -145,18 +154,18 @@ GameState &StateInGame::process(const cv::Mat &frame)
         this->stocks[i] = num_lives;
     }
 
-    this->ocr.analyze(frame, this->ocr_cases);
-    for (int i = 0; i < this->ocr_cases.size(); i++) {
-        OCRCase &res = ocr_cases[i];
-        std::cout << "Player " << i + 1 << ": " << res.text << "%" << std::endl;
-    }
+    // this->ocr.analyze(frame, this->ocr_cases);
+    // for (int i = 0; i < this->ocr_cases.size(); i++) {
+    //     OCRCase &res = ocr_cases[i];
+    //     cv::putText(frame, res.text, cv::Point(res.roi.x, res.roi.y), cv::FONT_HERSHEY_SIMPLEX, 0.5, cv::Scalar(0, 0, 255));
+    // }
 
     // TODO: Process game time, character damage/lives.
 
     return *this;
 }
 
-GameState &StatePaused::process(const cv::Mat &frame)
+GameState &StatePaused::process(cv::Mat &frame)
 {
     if (!LOCALIZE_PAUSED.t.count_matches(frame)) {
         if (LOCALIZE_SCORE_SCREEN.t.count_matches(frame)) { // Vanilla Melee
@@ -172,10 +181,11 @@ GameState &StatePaused::process(const cv::Mat &frame)
         }
 
         std::chrono::system_clock::time_point now = std::chrono::system_clock::now();
+        auto time_since_unpause = std::chrono::duration_cast<std::chrono::seconds>(now - this->unpause_time).count();
         if (!unpaused) {
             this->unpaused = true;
             this->unpause_time = now;
-        } else if ((now - this->unpause_time).count() > UNPAUSE_SECONDS_DELAY) {
+        } else if (time_since_unpause > UNPAUSE_SECONDS_DELAY) {
 #ifdef DEBUG
             std::cout << "STATE CHANGE: StatePaused -> StateInGame" << std::endl;
 #endif
@@ -188,7 +198,7 @@ GameState &StatePaused::process(const cv::Mat &frame)
     return *this;
 }
 
-GameState &StateGameEnd::process(const cv::Mat &frame)
+GameState &StateGameEnd::process(cv::Mat &frame)
 {
     if (LOCALIZE_SCORE_SCREEN.t.count_matches(frame)) { // Vanilla Melee
 #ifdef DEBUG
@@ -207,7 +217,7 @@ GameState &StateGameEnd::process(const cv::Mat &frame)
     return *this;
 }
 
-GameState &StateScoreScreen::process(const cv::Mat &frame)
+GameState &StateScoreScreen::process(cv::Mat &frame)
 {
     if (LOCALIZE_CHAR_SELECT.t.count_matches(frame)) {
 #ifdef DEBUG
